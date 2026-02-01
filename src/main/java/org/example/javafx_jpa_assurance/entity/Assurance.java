@@ -1,9 +1,20 @@
 package org.example.javafx_jpa_assurance.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.ToString.Exclude;
+
+import javax.validation.constraints.Max;
 
 @Entity
 @Table(name = "assurances")
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
 public class Assurance {
 
 
@@ -15,10 +26,17 @@ public class Assurance {
     protected String numero;
 
     protected String nomClient;
+
+    @Max(value = 100)
     protected double montant;
 
 
     private static  int compteur = 0;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "type_assurance_id")
+    @Exclude
+    private TypeAssurance typeAssurance;
 
     public Assurance(String nomClient, double montant) {
         this.nomClient = nomClient;
@@ -33,11 +51,7 @@ public class Assurance {
         this.montant = montant;
     }
 
-    public Assurance() {
-
-    }
-
-    private String generateNumero(){
+    private static String generateNumero(){
         return String.format("ASS%04d", compteur++);
     }
 
@@ -45,46 +59,10 @@ public class Assurance {
         return nbAnnees * calculerPrime();
     }
 
-    public int getId() {
-        return id;
-    }
-
-    public String getNumero() {
-        return numero;
-    }
-
-    public void setNumero(String numero) {
-        this.numero = numero;
-    }
-
-    public String getNomClient() {
-        return nomClient;
-    }
-
-    public void setNomClient(String nomClient) {
-        this.nomClient = nomClient;
-    }
-
-    public double getMontant() {
-        return montant;
-    }
-
-    public void setMontant(double montant) {
-        this.montant = montant;
-    }
-
-    public static int getCompteur() {
-        return compteur;
-    }
-
-    public static void setCompteur(int compteur) {
-        Assurance.compteur = compteur;
-    }
-
     public  double calculerPrime(){
         return 0;
     }
-    public  String getTypeAssurance(){
+    public  String getTypeName(){
         return "Assurance";
     }
 
@@ -92,14 +70,4 @@ public class Assurance {
         return compteur;
     }
 
-
-
-    @Override
-    public String toString() {
-        return "entity.Assurance{" +
-                "numero='" + numero + '\'' +
-                ", nomClient='" + nomClient + '\'' +
-                ", montant=" + montant +
-                '}';
-    }
 }

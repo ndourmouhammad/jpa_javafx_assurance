@@ -15,6 +15,7 @@ public class HelloApplication extends Application {
         stage.setTitle("Gestion des assurances - G1");
         stage.setScene(scene);
         stage.show();
-
     }
+
+
 }

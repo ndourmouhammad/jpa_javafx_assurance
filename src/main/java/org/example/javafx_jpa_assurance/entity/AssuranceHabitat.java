@@ -19,7 +19,7 @@ public class AssuranceHabitat extends  Assurance {
     }
 
     @Override
-    public String getTypeAssurance() {
+    public String getTypeName() {
         return "entity.Assurance Habitation";
     }
 

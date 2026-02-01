@@ -15,11 +15,11 @@ public  class AssuranceAuto extends Assurance {
 
     @Override
     public double calculerPrime() {
-        return montant * (1 + puissance *0.05) * (bonusMalus/100);
+        return montant * (1 + puissance *0.05) * ((double) bonusMalus/100) ;
     }
 
     @Override
-    public String getTypeAssurance() {
+    public String getTypeName() {
         return "entity.Assurance auto";
     }
 

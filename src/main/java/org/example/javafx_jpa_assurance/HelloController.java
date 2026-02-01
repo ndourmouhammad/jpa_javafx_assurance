@@ -9,8 +9,11 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import org.example.javafx_jpa_assurance.entity.Assurance;
 import org.example.javafx_jpa_assurance.repository.implement.AssuranceRepository;
+import org.example.javafx_jpa_assurance.entity.TypeAssurance;
+import org.example.javafx_jpa_assurance.repository.implement.TypeAssuranceRepository;
 
 import java.net.URL;
 import java.util.ResourceBundle;
@@ -26,50 +29,57 @@ import java.util.ResourceBundle;
 public class HelloController implements Initializable {
 
     private AssuranceRepository assuranceRepository;
+    private TypeAssuranceRepository typeAssuranceRepository;
     // Source principale des données affichées (non filtrées)
     private final ObservableList<Assurance> masterData = FXCollections.observableArrayList();
 
     @FXML
-    private Button bt_add;
+    private Button addButton;
 
     @FXML
-    private Button bt_clear;
+    private Button clearButton;
 
     @FXML
-    private Button bt_delete;
+    private Button deleteButton;
 
     @FXML
-    private Button bt_update;
+    private Button updateButton;
 
     @FXML
     // Colonnes du tableau (types explicites pour plus de clarté)
-    private TableColumn<Assurance, Integer> id_tab;
+    private TableColumn<Assurance, Integer> idColumn;
 
     @FXML
-    private TextField montant_input;
+    private TextField montantInput;
 
     @FXML
-    private TableColumn<Assurance, Double> montant_tab;
+    private TableColumn<Assurance, Double> montantColumn;
 
     @FXML
-    private TextField nom_input;
+    private TextField nomInput;
 
     @FXML
-    private TableColumn<Assurance, String> nom_tab;
+    private TableColumn<Assurance, String> nomColumn;
 
     @FXML
-    private TableColumn<Assurance, String> numero_tab;
+    private TableColumn<Assurance, String> numeroColumn;
+
+    @FXML
+    private TableColumn<Assurance, String> typeAssuranceColumn;
 
     @FXML
     private TableView<Assurance> tabAssurance;
 
     @FXML
-    private TextField recherche_input;
+    private TextField rechercheInput;
+
+    @FXML
+    private ComboBox<TypeAssurance> typeAssuranceSelect;
 
 
     public HelloController(){
         assuranceRepository = new AssuranceRepository();
-        // getAllAssurance();
+        typeAssuranceRepository = new TypeAssuranceRepository();
     }
 
     @Override
@@ -88,6 +98,10 @@ public class HelloController implements Initializable {
 
         // 5) État initial des boutons
         updateActionButtonsState(false);
+
+        // 6) Charger les types d'assurance dans la ComboBox
+        loadTypeAssurances();
+        configureTypeAssuranceComboRendering();
     }
 
 
@@ -95,10 +109,12 @@ public class HelloController implements Initializable {
     void addAssurance(ActionEvent event) {
         if (!isFormValid()) return;
 
-        String nom = nom_input.getText().trim();
-        double montant = parseMontant(montant_input.getText().trim());
+        String nom = nomInput.getText().trim();
+        double montant = parseMontant(montantInput.getText().trim());
 
         Assurance assurance = new Assurance(nom, montant);
+        TypeAssurance ta = typeAssuranceSelect.getValue();
+        assurance.setTypeAssurance(ta);
         assuranceRepository.insert(assurance);
         getAllAssurance();
         clearFormAndSelection();
@@ -125,11 +141,12 @@ public class HelloController implements Initializable {
 
         if (!isFormValid()) return; // validation simple et centralisée
 
-        String nom = nom_input.getText().trim();
-        double montant = parseMontant(montant_input.getText().trim());
+        String nom = nomInput.getText().trim();
+        double montant = parseMontant(montantInput.getText().trim());
 
         selected.setNomClient(nom);
         selected.setMontant(montant);
+        selected.setTypeAssurance(typeAssuranceSelect.getValue());
         assuranceRepository.update(selected);
         getAllAssurance();
         // Rester sur la ligne courante si possible
@@ -151,34 +168,28 @@ public class HelloController implements Initializable {
     // ===================== Méthodes utilitaires lisibles =====================
 
     private void setupColumns() {
-        id_tab.setCellValueFactory(new PropertyValueFactory<>("id"));
-        nom_tab.setCellValueFactory(new PropertyValueFactory<>("nomClient"));
-        montant_tab.setCellValueFactory(new PropertyValueFactory<>("montant"));
-        numero_tab.setCellValueFactory(new PropertyValueFactory<>("numero"));
+        idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
+        nomColumn.setCellValueFactory(new PropertyValueFactory<>("nomClient"));
+        montantColumn.setCellValueFactory(new PropertyValueFactory<>("montant"));
+        numeroColumn.setCellValueFactory(new PropertyValueFactory<>("numero"));
+        // Colonne affichant le nom du type d'assurance (gestion du null incluse)
+        if (typeAssuranceColumn != null) {
+            typeAssuranceColumn.setCellValueFactory(cell -> {
+                TypeAssurance ta = cell.getValue() == null ? null : cell.getValue().getTypeAssurance();
+                String value = (ta == null || ta.getName() == null) ? "" : ta.getName();
+                return new ReadOnlyStringWrapper(value);
+            });
+        }
     }
 
     private void setupSearch() {
         // Liste filtrée (recherche) puis triée (clic entête de colonne)
         FilteredList<Assurance> filtered = new FilteredList<>(masterData, a -> true);
 
-        if (recherche_input != null) {
-            recherche_input.textProperty().addListener((obs, oldV, newV) -> {
-                String filter = newV == null ? "" : newV.trim().toLowerCase();
-                if (filter.isEmpty()) {
-                    filtered.setPredicate(a -> true);
-                } else {
-                    filtered.setPredicate(a -> {
-                        if (a == null) return false;
-                        String idStr = String.valueOf(a.getId());
-                        String numero = a.getNumero() == null ? "" : a.getNumero().toLowerCase();
-                        String nom = a.getNomClient() == null ? "" : a.getNomClient().toLowerCase();
-                        String montantStr = String.valueOf(a.getMontant()).toLowerCase();
-                        return idStr.contains(filter)
-                                || numero.contains(filter)
-                                || nom.contains(filter)
-                                || montantStr.contains(filter);
-                    });
-                }
+        if (rechercheInput != null) {
+            rechercheInput.textProperty().addListener((obs, oldV, newV) -> {
+                String filter = normalizeFilter(newV);
+                filtered.setPredicate(a -> matchesFilter(a, filter));
             });
         }
 
@@ -187,27 +198,85 @@ public class HelloController implements Initializable {
         tabAssurance.setItems(sorted);
     }
 
+    // Normalise la valeur de recherche pour réduire la complexité de la logique appelante
+    private String normalizeFilter(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    // Vérifie si une assurance correspond au filtre fourni (gestion des nulls incluse)
+    private boolean matchesFilter(Assurance a, String filter) {
+        if (a == null) return false;
+        if (filter == null || filter.isEmpty()) return true;
+
+        String idStr = String.valueOf(a.getId());
+        String numero = a.getNumero() == null ? "" : a.getNumero().toLowerCase();
+        String nom = a.getNomClient() == null ? "" : a.getNomClient().toLowerCase();
+        String montantStr = String.valueOf(a.getMontant()).toLowerCase();
+        String typeName = (a.getTypeAssurance() == null || a.getTypeAssurance().getName() == null)
+                ? ""
+                : a.getTypeAssurance().getName().toLowerCase();
+
+        return idStr.contains(filter)
+                || numero.contains(filter)
+                || nom.contains(filter)
+                || montantStr.contains(filter)
+                || typeName.contains(filter);
+    }
+
     private void setupSelection() {
-        tabAssurance.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
-            if (newSel != null) {
-                nom_input.setText(newSel.getNomClient());
-                montant_input.setText(String.valueOf(newSel.getMontant()));
-                updateActionButtonsState(true);
-            } else {
-                updateActionButtonsState(false);
-            }
-        });
+        tabAssurance.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> onSelectionChanged(newSel));
+    }
+
+    // Gestion centralisée de la sélection pour réduire la complexité
+    private void onSelectionChanged(Assurance newSel) {
+        boolean hasSelection = newSel != null;
+        updateActionButtonsState(hasSelection);
+        if (!hasSelection) return;
+
+        updateFormFromAssurance(newSel);
+        // Synchroniser la ComboBox du type
+        syncTypeAssuranceSelection(newSel.getTypeAssurance());
+    }
+
+    private void updateFormFromAssurance(Assurance a) {
+        nomInput.setText(a.getNomClient());
+        montantInput.setText(String.valueOf(a.getMontant()));
+    }
+
+    private void syncTypeAssuranceSelection(TypeAssurance ta) {
+        if (typeAssuranceSelect == null) return;
+        if (ta == null) {
+            clearTypeSelection();
+            return;
+        }
+
+        TypeAssurance match = typeAssuranceSelect.getItems().stream()
+                .filter(t -> t != null && t.getId() == ta.getId())
+                .findFirst()
+                .orElse(null);
+        if (match != null) {
+            typeAssuranceSelect.getSelectionModel().select(match);
+        } else {
+            clearTypeSelection();
+        }
+    }
+
+    private void clearTypeSelection() {
+        typeAssuranceSelect.getSelectionModel().clearSelection();
     }
 
     private void updateActionButtonsState(boolean hasSelection) {
-        if (bt_update != null) bt_update.setDisable(!hasSelection);
-        if (bt_delete != null) bt_delete.setDisable(!hasSelection);
+        if (updateButton != null) updateButton.setDisable(!hasSelection);
+        if (deleteButton != null) deleteButton.setDisable(!hasSelection);
     }
 
     private void clearFormAndSelection() {
-        montant_input.clear();
-        nom_input.clear();
+        montantInput.clear();
+        nomInput.clear();
         tabAssurance.getSelectionModel().clearSelection();
+        if (typeAssuranceSelect != null) {
+            typeAssuranceSelect.getSelectionModel().clearSelection();
+        }
     }
 
     private Assurance getSelectedAssuranceOrInform(String messageIfNull) {
@@ -220,10 +289,14 @@ public class HelloController implements Initializable {
     }
 
     private boolean isFormValid() {
-        String nom = nom_input.getText() == null ? "" : nom_input.getText().trim();
-        String montantStr = montant_input.getText() == null ? "" : montant_input.getText().trim();
+        String nom = nomInput.getText() == null ? "" : nomInput.getText().trim();
+        String montantStr = montantInput.getText() == null ? "" : montantInput.getText().trim();
         if (nom.isEmpty() || montantStr.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Le nom et le montant sont obligatoires.");
+            return false;
+        }
+        if (typeAssuranceSelect == null || typeAssuranceSelect.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Veuillez sélectionner un type d'assurance.");
             return false;
         }
         try {
@@ -242,6 +315,30 @@ public class HelloController implements Initializable {
     private void showAlert(Alert.AlertType type, String message) {
         Alert alert = new Alert(type, message);
         alert.showAndWait();
+    }
+
+    private void loadTypeAssurances() {
+        if (typeAssuranceSelect == null) return;
+        java.util.List<TypeAssurance> types = typeAssuranceRepository.getAll();
+        typeAssuranceSelect.setItems(FXCollections.observableArrayList(types));
+    }
+
+    private void configureTypeAssuranceComboRendering() {
+        if (typeAssuranceSelect == null) return;
+        typeAssuranceSelect.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(TypeAssurance item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? "" : item.getName());
+            }
+        });
+        typeAssuranceSelect.setCellFactory(cb -> new ListCell<>() {
+            @Override
+            protected void updateItem(TypeAssurance item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
     }
 
 

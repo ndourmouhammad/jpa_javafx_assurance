@@ -1,8 +1,8 @@
 package org.example.javafx_jpa_assurance.enumerations;
 
 public enum AssuranceEnum {
-    Habitat("Assurance  Habitation"),
-    Auto("ASSURANCE AUTOMOBILE");
+    HABITAT("Assurance  Habitation"),
+    AUTO("ASSURANCE AUTOMOBILE");
 
     public final String label;
 

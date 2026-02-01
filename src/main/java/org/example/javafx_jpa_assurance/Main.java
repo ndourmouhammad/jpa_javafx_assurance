@@ -9,9 +9,6 @@ public class Main {
     public static void main(String[] args) {
 
         AssuranceRepository assuranceRepository = new AssuranceRepository();
-//        for (int i = 0; i < 10; i++) {
-//            assuranceRepository.insert(new Assurance("AMADOU DIOP", 1000000));
-//        }
 
         // Suppression par entité (le repo attend une entité, pas un id)
         Assurance toDelete = assuranceRepository.getById(2);
@@ -19,15 +16,7 @@ public class Main {
             assuranceRepository.delete(toDelete);
         }
 
-        // Avoid NullPointerException by not assuming a specific id exists
-//        Assurance anyAssurance = assuranceRepository.getAll().stream().findFirst().orElse(null);
-//        if (anyAssurance != null) {
-//            System.out.println(anyAssurance);
-//        } else {
-//            System.out.println("No assurance records found.");
-//        }
-//
-//        assuranceRepository.getAll().forEach(System.out::println);
+
 
         // Safely update an existing record if available
         Assurance assurance =  assuranceRepository.getAll().stream().findFirst().orElse(null);
